@@ -11,9 +11,6 @@ from dataclasses import InitVar, dataclass, field, replace
 from inspect import getmro
 from typing import TYPE_CHECKING, Any, Callable, Deque, Mapping, NamedTuple, Sequence, TypeVar, cast
 
-from rich.markup import escape
-from rich.tree import Tree
-
 from . import config
 from .codegen import (
     gen_get_child_nodes_func,
@@ -39,6 +36,15 @@ if sys.version_info >= (3, 11):
 
     if hasattr(SerializableType, "__slots__"):
         _dataclass_extra_args = dict(slots=True, weakref_slot=True)
+
+_HAS_RICH = False
+try:
+    from rich.markup import escape
+    from rich.tree import Tree
+
+    _HAS_RICH = True
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -812,43 +818,43 @@ class ASTNode(DataClassSerializeMixin):
         # At this point this will call a specialized function
         yield from self.get_child_nodes_with_field()
 
-    def __rich__(self, parent: Tree | None = None) -> Tree:
-        """Returns a tree widget for the 'rich' library."""
-        return self._rich(parent)
+    if _HAS_RICH:
 
-    def _rich(self, parent: Tree | None, field: Field | None = None) -> Tree:
-        name = f":deciduous_tree:[bold green]root({self.__class__.__name__})[/bold green]"
-        if field:
-            name = (
-                f":deciduous_tree:[bold green]{field.name}({self.__class__.__name__})[/bold green]"
-            )
+        def __rich__(self, parent: Tree | None = None) -> Tree:
+            """Returns a tree widget for the 'rich' library."""
+            return self._rich(parent)
 
-        if parent:
-            tree = parent.add(name)
-        else:
-            tree = Tree(name)
+        def _rich(self, parent: Tree | None, field: Field | None = None) -> Tree:
+            name = f":deciduous_tree:[bold green]root({self.__class__.__name__})[/bold green]"
+            if field:
+                name = f":deciduous_tree:[bold green]{field.name}({self.__class__.__name__})[/bold green]"
 
-        if self.origin is not None:
-            tree.add(f":round_pushpin: @{escape(str(self.origin))}")
-
-        for p, f in self.get_properties(skip_id=False):
-            tree.add(f":spiral_notepad: [yellow]{f.name}[/]={escape(str(p))}")
-
-        for child, f in self.iter_child_fields():
-            if isinstance(child, Iterable):
-                if not child:
-                    tree.add(f":file_folder:[yellow]{f.name}[/]={escape('()')}")
-                    continue
-
-                subtree = tree.add(f":file_folder:[yellow]{f.name}[/]")
-                for c in child:
-                    c._rich(subtree, f)
-            elif child is None:
-                tree.add(f":file_folder:[yellow]{f.name}[/]={escape(str(None))}")
+            if parent:
+                tree = parent.add(name)
             else:
-                child._rich(tree, f)
+                tree = Tree(name)
 
-        return tree
+            if self.origin is not None:
+                tree.add(f":round_pushpin: @{escape(str(self.origin))}")
+
+            for p, f in self.get_properties(skip_id=False):
+                tree.add(f":spiral_notepad: [yellow]{f.name}[/]={escape(str(p))}")
+
+            for child, f in self.iter_child_fields():
+                if isinstance(child, Iterable):
+                    if not child:
+                        tree.add(f":file_folder:[yellow]{f.name}[/]={escape('()')}")
+                        continue
+
+                    subtree = tree.add(f":file_folder:[yellow]{f.name}[/]")
+                    for c in child:
+                        c._rich(subtree, f)
+                elif child is None:
+                    tree.add(f":file_folder:[yellow]{f.name}[/]={escape(str(None))}")
+                else:
+                    child._rich(tree, f)
+
+            return tree
 
     __hash__ = _hash_fn
 

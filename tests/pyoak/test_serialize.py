@@ -75,3 +75,60 @@ def test_serialization_options() -> None:
     )
 
     assert d == {"bar": -1, "foo": 1, "nested": None}
+
+
+@pytest.mark.dep_orjson
+def test_json_serialize() -> None:
+    """Test roundtrip (de)serialization from/to JSON with all serialization
+    options variations."""
+
+    m = SerializeTestClass(1)
+
+    # Test default options
+    d = m.to_json()
+
+    assert d == f'{{"{TYPE_KEY}": "SerializeTestClass", "foo": 1, "bar": -1, "nested": null}}'
+    assert SerializeTestClass.from_json(d) == m
+
+    # Test indent
+    d = m.to_json(indent=True)
+
+    assert (
+        d
+        == f'{{\n  "{TYPE_KEY}": "SerializeTestClass",\n  "foo": 1,\n  "bar": -1,\n  "nested": null\n}}'
+    )
+
+    # Test skip class
+    d = m.to_json(serialization_options={SerializationOption.SKIP_CLASS: True})
+
+    assert d == '{"foo": 1, "bar": -1, "nested": null}'
+    assert SerializeTestClass.from_json(d) == m
+
+    # Test sort keys
+    d = m.to_json(serialization_options={SerializationOption.SORT_KEYS: True})
+
+    # Class always goes first even with sorted keys
+
+    assert d == f'{{"{TYPE_KEY}": "SerializeTestClass", "bar": -1, "foo": 1, "nested": null}}'
+    assert SerializeTestClass.from_json(d) == m
+
+    # Test skip class and sort keys
+    d = m.to_json(
+        serialization_options={
+            SerializationOption.SKIP_CLASS: True,
+            SerializationOption.SORT_KEYS: True,
+        }
+    )
+
+    assert d == '{"bar": -1, "foo": 1, "nested": null}'
+    assert SerializeTestClass.from_json(d) == m
+
+
+def test_no_extrast_serialize_funcs() -> None:
+    assert not hasattr(SerializeTestClass, "from_yaml")
+    assert not hasattr(SerializeTestClass, "to_yaml")
+    assert not hasattr(SerializeTestClass, "from_msgpack")
+    assert not hasattr(SerializeTestClass, "to_msgpack")
+    assert hasattr(SerializeTestClass, "from_json")
+    assert hasattr(SerializeTestClass, "to_json")
+    assert hasattr(SerializeTestClass, "to_jsonb")

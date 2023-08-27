@@ -58,3 +58,20 @@ def pyoak_config() -> ConfigFixtureProtocol:
         config.RUNTIME_TYPE_CHECK = old_runtime_checks
 
     return _with_config
+
+
+def pytest_runtest_setup(item: pytest.Item):
+    test_dep_marks = set(
+        mark.name[4:] for mark in item.iter_markers() if mark.name.startswith("dep_")
+    )
+    assert len(test_dep_marks) <= 1, "Only one or no dep_ mark can be used"
+
+    request_dep_marks = set(
+        mark_name[4:]
+        for mark_name in item.config.getoption("-m", "").split()
+        if mark_name.startswith("dep_")
+    )
+    assert len(request_dep_marks) <= 1, "Only one or no dep_ mark can be used"
+
+    if test_dep_marks and test_dep_marks != request_dep_marks and request_dep_marks != {"all"}:
+        pytest.skip("Skipped test that should run only when optional deps are installed")

@@ -14,9 +14,6 @@ from dataclasses import InitVar, dataclass, field, fields, replace
 from inspect import getmembers, getmro, isfunction
 from operator import itemgetter
 
-from rich.markup import escape
-from rich.tree import Tree
-
 from ..origin import Origin
 from ..serialize import TYPE_KEY, DataClassSerializeMixin
 from .error import (
@@ -29,6 +26,15 @@ from .error import (
     ASTTransformError,
 )
 from .helpers import ChildFieldTypeInfo, get_ast_node_child_fields, get_ast_node_properties
+
+_HAS_RICH = False
+try:
+    from rich.markup import escape
+    from rich.tree import Tree
+
+    _HAS_RICH = True
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -1490,49 +1496,49 @@ class AwareASTNode(DataClassSerializeMixin):
                 assert isinstance(objects, AwareASTNode)
                 yield objects, f, None
 
-    def __rich__(self, parent: Tree | None = None) -> Tree:
-        """Returns a tree widget for the 'rich' library."""
-        return self._rich(parent)
+    if _HAS_RICH:
 
-    def _rich(self, parent: Tree | None, field: Field | None = None) -> Tree:
-        name = f":deciduous_tree:[bold green]root({self.__class__.__name__})[/bold green]"
-        if field:
-            name = (
-                f":deciduous_tree:[bold green]{field.name}({self.__class__.__name__})[/bold green]"
-            )
+        def __rich__(self, parent: Tree | None = None) -> Tree:
+            """Returns a tree widget for the 'rich' library."""
+            return self._rich(parent)
 
-        if parent:
-            tree = parent.add(name)
-        else:
-            tree = Tree(name)
+        def _rich(self, parent: Tree | None, field: Field | None = None) -> Tree:
+            name = f":deciduous_tree:[bold green]root({self.__class__.__name__})[/bold green]"
+            if field:
+                name = f":deciduous_tree:[bold green]{field.name}({self.__class__.__name__})[/bold green]"
 
-        if self.origin is not None:
-            tree.add(f":round_pushpin: @{escape(str(self.origin))}")
+            if parent:
+                tree = parent.add(name)
+            else:
+                tree = Tree(name)
 
-        for p, f in self.get_properties(skip_id=False):
-            tree.add(f":spiral_notepad: [yellow]{f.name}[/]={escape(str(p))}")
+            if self.origin is not None:
+                tree.add(f":round_pushpin: @{escape(str(self.origin))}")
 
-        for f in fields(self):
-            # Skip non-child fields
-            if not self._is_field_child(f):
-                continue
+            for p, f in self.get_properties(skip_id=False):
+                tree.add(f":spiral_notepad: [yellow]{f.name}[/]={escape(str(p))}")
 
-            child = getattr(self, f.name)
-            if isinstance(child, Iterable):
-                if not child:
-                    tree.add(f":file_folder:[yellow]{f.name}[/]={escape('()')}")
+            for f in fields(self):
+                # Skip non-child fields
+                if not self._is_field_child(f):
                     continue
 
-                subtree = tree.add(f":file_folder:[yellow]{f.name}[/]")
-                for c in child:
-                    if isinstance(c, AwareASTNode):
-                        c._rich(subtree, f)
-            elif child is None:
-                tree.add(f":file_folder:[yellow]{f.name}[/]={escape(str(None))}")
-            else:
-                child._rich(tree, f)
+                child = getattr(self, f.name)
+                if isinstance(child, Iterable):
+                    if not child:
+                        tree.add(f":file_folder:[yellow]{f.name}[/]={escape('()')}")
+                        continue
 
-        return tree
+                    subtree = tree.add(f":file_folder:[yellow]{f.name}[/]")
+                    for c in child:
+                        if isinstance(c, AwareASTNode):
+                            c._rich(subtree, f)
+                elif child is None:
+                    tree.add(f":file_folder:[yellow]{f.name}[/]={escape(str(None))}")
+                else:
+                    child._rich(tree, f)
+
+            return tree
 
     __hash__ = None  # type: ignore # Make sure even frozen dataclasses will not be hashable
 

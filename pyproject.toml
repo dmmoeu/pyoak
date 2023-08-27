@@ -18,13 +18,25 @@ packages = [{ include = "pyoak", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10"
-rich = ">=12.5.0, <14"
 mashumaro = ">=3.8.1,<3.9"
 lark = "^1.1.5"
-pyyaml = "^6.0.0"
-orjson = "^3.8.7"
-msgpack = "^1.0.4"
-chardet = "^5.0.0"
+
+# Optional deps
+rich = { version = ">=12.5.0, <14", optional = true }
+chardet = { version = "^5.0.0", optional = true }
+
+# Optional serialization dependencies
+pyyaml = { version = "^6.0.0", optional = true }
+orjson = { version = "^3.8.7", optional = true }
+msgpack = { version = "^1.0.4", optional = true }
+
+[tool.poetry.extras]
+chardet = ["chardet"]
+msgpack = ["msgpack"]
+orjson = ["orjson"]
+rich = ["rich"]
+yaml = ["pyyaml"]
+all = ["chardet", "msgpack", "orjson", "rich", "pyyaml"]
 
 [tool.poetry.group.dev.dependencies]
 bump2version = "^1.0.1"
@@ -54,6 +66,14 @@ twine = "^4.0.2"
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "--basetemp=testtemp"
+markers = [
+    "dep_chardet: test chardet optional dependency",
+    "dep_msgpack: test msgpack optional dependency",
+    "dep_orjson: test orjson optional dependency",
+    "dep_rich: test rich optional dependency",
+    "dep_yaml: test yaml optional dependency",
+    "dep_all: test with all optional dependencies",
+]
 
 [tool.black]
 line-length = 100

@@ -1,7 +1,14 @@
 import logging
 from pathlib import Path
 
-import chardet
+_HAS_CHARDET = False
+
+try:
+    import chardet
+
+    _HAS_CHARDET = True
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +29,9 @@ def read_text_unknown_encoding(file: Path) -> str | None:
         try:
             raw_text = f.read()
         except UnicodeDecodeError:
+            if not _HAS_CHARDET:
+                logger.exception(f"Could not read text file. File {file} is not in UTF-8 encoding")
+                return None
             logger.debug(f"File {file} is not in UTF-8 encoding. Trying to detect encoding.")
             with file.open("rb") as fb:
                 encs = chardet.detect(fb.read())

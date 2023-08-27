@@ -347,6 +347,7 @@ def test_ast_test_serialization_dialect() -> None:
     ParentNode.as_obj(serialized_dialect_dict)
 
 
+@pytest.mark.dep_msgpack
 def test_to_msgpack() -> None:
     ch_nodes: list[ASTNode] = []
     ch_count = 10
